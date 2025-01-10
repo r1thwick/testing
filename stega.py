@@ -22,60 +22,6 @@ def derive_key(password: str) -> bytes:
     """Derive a key from the given password using a hash function."""
     return Fernet.generate_key()  # In this case, we use Fernet's method for simplicity.
 
-def encode_image_with_file(image_path, output_path, file_path, password):
-    """Encodes a password-protected file content into an image."""
-    try:
-        # Read the file content
-        with open(file_path, 'r') as file:
-            file_content = file.read()
-
-        # Derive encryption key from the password
-        key = derive_key(password)
-        cipher = Fernet(key)
-
-        # Encrypt the file content
-        encrypted_message = cipher.encrypt(file_content.encode('utf-8'))
-        binary_data = ''.join(format(byte, '08b') for byte in encrypted_message)
-
-        # Open the carrier image
-        image = Image.open(image_path).convert('RGB')
-        encoded_image = image.copy()
-        pixels = encoded_image.load()
-        width, height = image.size
-
-        binary_index = 0
-        for y in range(height):
-            for x in range(width):
-                if binary_index < len(binary_data):
-                    pixel = list(pixels[x, y])
-                    for i in range(3):  # Process RGB channels
-                        if binary_index < len(binary_data):
-                            pixel[i] = (pixel[i] & ~1) | int(binary_data[binary_index])
-                            binary_index += 1
-                    pixels[x, y] = tuple(pixel)
-
-        # Mark the end of the message
-        if binary_index < width * height * 3:
-            for _ in range(8):  # Add 8 bits of padding as EOF
-                x = binary_index % width
-                y = binary_index // width
-                pixel = list(pixels[x, y])
-                pixel[0] = (pixel[0] & ~1)  # Set LSB to 0 for EOF
-                pixels[x, y] = tuple(pixel)
-                binary_index += 1
-
-        # Get the original format of the image
-        original_format = image.format if image.format else 'PNG'  # Default to PNG if None
-
-        # Ensure the output path includes the correct format
-        if not output_path.lower().endswith(f".{original_format.lower()}"):
-            output_path += f".{original_format.lower()}"  # Append the correct extension
-
-        # Save the encoded image in the same format as the input carrier image
-        encoded_image.save(output_path, format=original_format)
-        messagebox.showinfo("Success", f"File content encoded and saved to {output_path}.")
-    except Exception as e:
-        messagebox.showerror("Error", f"Error encoding the image: {e}")
 
 # Example usage:
 # encode_image_with_file('input_image.jpg', 'encoded_image', 'file_to_encode.txt', 'your_password')
